@@ -1,0 +1,18 @@
+
+apache-tomcat-9.0.86                                                                                                                     
+jdk-17.0.10                                                                                                                              
+Python310                                                                                                                                
+workspace_python_old                                                                                                                     
+workspace_sql_old                                                                                                                        
+강사님 파일                                                                                                                              
+설치파일                                                                                                                                 
+gitignore
+sqldeveloper
+./workspace_python/.idea
+./workspace_python/.ipynb_checkpoints
+./workspace_python/.venv
+./workspace_python/basic/.ipynb_checkpoints
+./workspace_python/kleague_2024/.ipynb_checkpoints
+./workspace_python/강사님 파일
+./workspace_python/강사님 파일/혼공머신/.ipynb_checkpoints
+

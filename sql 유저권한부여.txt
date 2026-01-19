@@ -1,0 +1,4 @@
+sqlplus system/0000
+create user it identified by "0000";
+grant dba to it;
+exit;
