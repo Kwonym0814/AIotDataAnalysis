@@ -17,4 +17,21 @@ def hello_world():
                            )
 
 
+@app.route("/register_html")                       #----------------------- 웹주소
+def register_html():
+    return render_template('register.html')        #----------------------- .html파일
+
+@app.route("/login_html")
+def login_html():
+    return render_template('login.html')
+
+@app.route("/chart_html")
+def chart_html():
+    return render_template('charts.html')
+
+@app.route("/table_html")
+def table_html():
+    return render_template('tables.html')
+
+
 app.run(host='127.0.0.1', port=7777, debug=True)
