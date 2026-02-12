@@ -1,7 +1,9 @@
 
-from flask import Flask, render_template, request, redirect
+from flask import Flask, render_template, request, redirect, jsonify, session
 import pandas as pd
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
+
+
 
 
 app = Flask(__name__)
@@ -172,9 +174,6 @@ def form_search():
     return render_template('rest_test.html',
                            my_table=table_html_string)
 
-
-
-
 @app.route("/rest_post", methods=["POST"])
 def rest_post():
     uid = request.form.get("uid")
@@ -196,6 +195,56 @@ def rest_post():
 @app.route("/rest_test_html")
 def rest_test_html():
     return render_template('rest_test.html')
+
+
+@app.route("/index_barchart_ajax", methods=['POST'])
+def index_barchart_ajax():
+    # 2. AJAX 요청을 처리하는 라우트 (POST) -> 이름 바꿈
+    # AJAX가 보낸 데이터 받기 (request.form 똑같이 씁니다)
+    deptno = request.form.get("deptno")
+    print(f"선택된 부서번호: {deptno}") # 콘솔 확인용
+
+    # DB 조회 로직
+    with (engine.connect() as conn):
+        sql = text("""
+            SELECT ENAME, SAL
+            FROM emp 
+            WHERE deptno = :deptno
+        """)
+        # params에 딕셔너리로 안전하게 전달
+        df = pd.read_sql(sql, conn, params={'deptno': deptno})
+        print(df.head())
+
+    # 결과 처리
+    if df.empty:
+        return jsonify({
+            'labels': [],
+            'values': []
+        })
+
+    # ★ 핵심: 전체 템플릿이 아니라, 표(Table) HTML 문자열만 딱 리턴함!
+    return jsonify({
+        'labels': df['ename'].tolist(),
+        'values': df['sal'].tolist()
+    })
+
+
+@app.route('/news_data')
+def get_news_data():
+    # ... (크롤링 하거나 csv 읽는 코드) ...
+    df = pd.read_csv("news_ytn.csv", header=0)
+
+    print(df.head())
+
+    # 데이터프레임을 딕셔너리 리스트로 변환
+    news_data = df.to_dict(orient='records')
+
+    # JSON 형태로 리턴 ({ "data": [...] })
+    return jsonify(data=news_data)
+
+
+
+
 
 
 engine.dispose()
