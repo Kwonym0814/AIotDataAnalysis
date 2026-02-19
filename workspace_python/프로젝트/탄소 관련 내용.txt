@@ -1,0 +1,285 @@
+# <b> -- < tCO₂ 계산 로직 (Baseline) > -- 
+* 아래 parameter들은 예시 값임 _ API 활용하여 함수 재정의 필요
+
+import pandas as pd
+import numpy as np
+
+# --- [설정값 정의] ---
+EMISSION_FACTOR = {2018: 0.000466, 2020: 0.000445, 2022: 0.000430, 2024: 0.000415, 2026: 0.000390}
+CARBON_PRICE = {2018: 25000, 2020: 30000, 2022: 35000, 2024: 45000, 2026: 60000}
+
+# --- [비용 계산 함수 정의] ---
+
+def calculate_all_costs(df):
+    # 1. 단가 매핑 및 전력량 요금 (Energy_Cost)
+    # 이미 get_unit_price 함수가 정의되어 있다고 가정합니다.
+    df['unit_price'] = df.apply(get_unit_price, axis=1)
+    df['Energy_Cost_KRW'] = df['Usage_kWh'] * df['unit_price']
+
+    # 2. 역률 페널티 (PF_Penalty)
+    # 15분 데이터이므로 기본요금을 해당 시간만큼 쪼개서 적용 (비정상 수치 방지)
+    def get_fixed_penalty(row):
+        pf = row['Power_Factor']
+        # 월 기본요금(6160원)을 15분 단위 개수(약 2976개)로 나눔
+        basic_rate_per_15min = 6160.0 / (31 * 24 * 4) 
+        basic_cost = (row['Usage_kWh'] * 4) * basic_rate_per_15min
+        
+        diff = pf - 90
+        if diff >= 0:
+            adj_rate = -min(diff, 25) * 0.002  # 할인
+        else:
+            adj_rate = min(abs(diff), 100) * 0.002 # 할증
+        return basic_cost * adj_rate
+
+    df['PF_Penalty_KRW'] = df.apply(get_fixed_penalty, axis=1)
+
+    # 3. 탄소 비용 (Carbon_Cost)
+    df['Emission_Factor'] = df['Year'].map(lambda y: EMISSION_FACTOR.get(y, 0.000390))
+    df['Carbon_Price'] = df['Year'].map(lambda y: CARBON_PRICE.get(y, 60000))
+    
+    df['tCO2'] = df['Usage_kWh'] * df['Emission_Factor']
+    df['Carbon_Cost_KRW'] = df['tCO2'] * df['Carbon_Price']
+
+    # 4. 최종 통합 비용
+    df['Total_Cost_With_Carbon'] = (
+        df['Energy_Cost_KRW'] + 
+        df['PF_Penalty_KRW'] + 
+        df['Carbon_Cost_KRW']
+    )
+    
+    return df
+
+# 실행
+CO2_df = calculate_all_costs(df)
+print(CO2_df[['Energy_Cost_KRW', 'PF_Penalty_KRW', 'Carbon_Cost_KRW', 'Total_Cost_With_Carbon']].head())
+
+  Energy_Cost_KRW  PF_Penalty_KRW  Carbon_Cost_KRW  Total_Cost_With_Carbon
+0          200.027        4.685895          36.9305              241.643395
+1          252.400        5.917066          46.6000              304.917066
+2          204.444        4.790941          37.7460              246.980941
+3          208.861        4.895646          38.5615              252.318146
+4          241.042        5.652096          44.5030              291.197096
+
+import pandas as pd
+import requests
+
+# 1. API로부터 데이터를 가져오는 가상의 함수
+def get_carbon_data_from_api():
+    """
+    실제 API 엔드포인트에서 탄소 계수와 가격 정보를 가져옵니다.
+    """
+    try:
+        # 예시 API 주소 (실제 운영되는 API URL로 변경 필요)
+        # response = requests.get("https://api.carbon-data.com/v1/factors")
+        # data = response.json()
+        
+        # API 응답 결과가 아래와 같다고 가정합니다.
+        api_data = {
+            'factors': {2018: 0.000466, 2020: 0.000445, 2022: 0.000430, 2024: 0.000415, 2026: 0.000390},
+            'prices': {2018: 25000, 2020: 30000, 2022: 35000, 2024: 45000, 2026: 60000}
+        }
+        return api_data['factors'], api_data['prices']
+    
+    except Exception as e:
+        print(f"API 호출 오류: {e}")
+        # 오류 발생 시 사용할 기본값(Backup) 설정
+        return {2026: 0.000390}, {2026: 60000}
+
+# 2. 통합 비용 계산 함수 (API 적용 버전)
+def calculate_costs_with_api(df):
+    # API 호출 (함수 내부나 외부에서 한 번만 실행)
+    api_factors, api_prices = get_carbon_data_from_api()
+    
+    # [전력 및 페널티 계산 로직은 기존과 동일]
+    df['unit_price'] = df.apply(get_unit_price, axis=1)
+    df['Energy_Cost_KRW'] = df['Usage_kWh'] * df['unit_price']
+    
+    # 3. 탄소 데이터 매핑 (API에서 받아온 값 사용)
+    # map() 함수를 사용하여 연도별로 API 값을 매칭합니다.
+    df['Emission_Factor'] = df['Year'].map(lambda y: api_factors.get(y, 0.000390))
+    df['Carbon_Price'] = df['Year'].map(lambda y: api_prices.get(y, 60000))
+    
+    # 4. 탄소 비용 및 합계 계산
+    df['tCO2'] = df['Usage_kWh'] * df['Emission_Factor']
+    df['Carbon_Cost_KRW'] = df['tCO2'] * df['Carbon_Price']
+    
+    df['Total_Cost_With_Carbon'] = (
+        df['Energy_Cost_KRW'] + 
+        df['PF_Penalty_KRW'] + 
+        df['Carbon_Cost_KRW']
+    )
+    
+    return df
+
+# 실행
+CO2_df = calculate_costs_with_api(df)
+print(CO2_df[['Energy_Cost_KRW', 'PF_Penalty_KRW', 'Carbon_Cost_KRW', 'Total_Cost_With_Carbon']].head())
+
+   Energy_Cost_KRW  PF_Penalty_KRW  Carbon_Cost_KRW  Total_Cost_With_Carbon
+0          200.027        4.685895          36.9305              241.643395
+1          252.400        5.917066          46.6000              304.917066
+2          204.444        4.790941          37.7460              246.980941
+3          208.861        4.895646          38.5615              252.318146
+4          241.042        5.652096          44.5030              291.197096
+
+import pandas as pd
+
+# 1. 연도별 설정값 정의
+EMISSION_FACTOR_BY_YEAR = {2018: 0.000466, 2020: 0.000445, 2022: 0.000430, 2024: 0.000415, 2026: 0.000390}
+CARBON_PRICE_BY_YEAR = {2018: 25000, 2020: 30000, 2022: 35000, 2024: 45000, 2026: 60000}
+
+# 2. 전력 요금 및 역률 페널티 계산 (시뮬레이션 코드 로직 기반)
+df['Energy_Cost_KRW'] = df['Usage_kWh'] * df['unit_price'] # unit_price가 있다면 사용
+df['PF_Penalty_KRW'] = df.apply(calculate_pf_penalty, axis=1)
+
+# 3. 매핑 (Mapping) - lambda보다 훨씬 빠릅니다.
+df['Emission_Factor'] = df['Year'].map(lambda y: EMISSION_FACTOR_BY_YEAR.get(y, 0.000390))
+df['Carbon_Price'] = df['Year'].map(lambda y: CARBON_PRICE_BY_YEAR.get(y, 60000))
+
+# 4. 탄소 배출량 및 탄소 비용 계산
+# tCO2 = 사용량(kWh) * 배출계수(tCO2/kWh)
+df['tCO2'] = df['Usage_kWh'] * df['Emission_Factor']
+
+# Carbon_Cost_KRW = 탄소배출량(tCO2) * 탄소가격(원/tCO2)
+df['Carbon_Cost_KRW'] = df['tCO2'] * df['Carbon_Price']
+
+
+# 5. 최종 통합 비용 계산 (전기요금 + 탄소비용)
+# 주의: 기존 피처명(Energy_Cost_KRW, PF_Penalty_KRW)이 데이터프레임에 존재해야 합니다.
+df['Total_Cost_With_Carbon'] = (
+                                    df['Energy_Cost_KRW'] + 
+                                    df['PF_Penalty_KRW'] + 
+                                    df['Carbon_Cost_KRW']
+                                )
+
+print(df[['Usage_kWh', 'tCO2', 'Carbon_Cost_KRW', 'Total_Cost_With_Carbon']].head())
+ 
+ Usage_kWh      tCO2  Carbon_Cost_KRW  Total_Cost_With_Carbon
+0       3.17  0.001477          36.9305            14182.181993
+1       4.00  0.001864          46.6000            17908.188391
+2       3.24  0.001510          37.7460            14500.031025
+3       3.31  0.001542          38.5615            14816.864315
+4       3.82  0.001780          44.5030            17106.182064
+
+(1) 연도별 전력 탄소 계수 설계
+국가 전력 믹스 개선을 반영하여, kWh당 탄소 배출 계수는 연도에 따라 점진적으로 감소하는 것으로 가정한다.
+
+탄소 가격 (KAU)
+한국 배출권거래제(K-ETS)의 배출권 가격은 한국거래소(KRX)에서 연도별·시기별로 공시
+# 연도별 전력 탄소 배출 계수 (tCO2 / kWh)
+EMISSION_FACTOR_BY_YEAR = {
+                                2018: 0.000466,
+                                2020: 0.000450,
+                                2022: 0.000430,
+                                2024: 0.000410,
+                                2026: 0.000390
+                            }
+
+def get_emission_factor(year):
+    return EMISSION_FACTOR_BY_YEAR.get(year, 0.000390)
+	
+### <b> (2) tCO₂ 계산
+df['Emission_Factor'] = df['Year'].apply(get_emission_factor)
+df['tCO2'] = df['Usage_kWh'] * df['Emission_Factor']
+
+### <b> (3) 탄소 비용 함수 (정책 반영 핵심)
+> 연도별 탄소 가격 시나리오 <br>
+> 탄소 비용은 배출권 거래제의 가격 변동성을 고려 <br>
+> -> 연도별 시나리오 파라미터로 정의
+CARBON_PRICE_BY_YEAR = {
+                            2018: 25000,
+                            2020: 30000,
+                            2022: 35000,
+                            2024: 45000,
+                            2026: 60000
+                        }
+
+def get_carbon_price(year):
+    return CARBON_PRICE_BY_YEAR.get(year, 60000)
+	
+#### <b> (3-1) 연도별 탄소 배출 계수
+def grid_emission_factor(year: int) -> float:
+    """
+    연도별 전력 탄소 배출 계수 (tCO2 per kWh)
+    정책 변화 및 전력 믹스 개선을 반영한 추정 값.
+    """
+    factor_table = {
+        2018: 0.000466,
+        2020: 0.000445,
+        2022: 0.000430,
+        2024: 0.000415,
+        2026: 0.000390
+    }
+    return factor_table.get(year, 0.000390)  # default: 최신 추정치
+	
+#### <b> (3-2) 연도별 탄소 가격 함수
+def carbon_price_krw(year: int) -> float:
+    """
+    연도별 탄소 배출권 가격(KRW / tCO2)
+    KAU(KR ETS) 시장 가격 및 정책 예상치를 기반으로 설계.
+    """
+
+    price_table = {
+        2018: 25000,
+        2020: 30000,
+        2022: 35000,
+        2024: 45000,
+        2026: 55000
+    }
+    return price_table.get(year, 55000)  # default: 정책 강도 높은 시나리오
+	
+	
+#### <b> (3-3) 탄소 비용 계산 함수
+def calculate_carbon_cost(df):
+    """
+    df must include:
+        - 'Usage_kWh'
+        - 'date' (datetime)
+    This function returns:
+        - df with 'tCO2', 'Carbon_Cost'
+    """
+
+    # 탄소 배출량
+    df['tCO2'] = df.apply(
+        lambda row: row['Usage_kWh'] * grid_emission_factor(row['Year']),
+        axis=1
+    )
+
+    # 탄소 비용
+    df['Carbon_Cost'] = df.apply(
+        lambda row: row['tCO2'] * carbon_price_krw(row['Year']),
+        axis=1
+    )
+
+    return df
+	
+#### <b> (3-4) 최종 비용 함수에 통합
+# 예시: 기존 비용이 df['Total_Cost']로 존재한다면
+df = calculate_carbon_cost(df)
+df['Total_Cost'] = df['Energy_Cost_KRW'] + df['PF_Penalty_KRW']
+
+# 최종 비용 계산
+df['Total_Cost_With_Carbon'] = ( df['Total_Cost'] + df['Carbon_Cost'] )
+
+### <b> (4) 탄소 비용 계산
+df['Carbon_Price'] = df['Year'].apply(get_carbon_price)
+df['Carbon_Cost_KRW'] = df['tCO2'] * df['Carbon_Price']
+
+### <b> （5） 총 비용 구조 (보고서에서 제일 중요한 그림)
+> 초기 분석에서는 탄소 비용이 전체 비용에서 차지하는 비중이 작아 보일 수 있다. <br>
+그러나 동일한 공정 패턴을 2026년 정책 환경에 투영할 경우,<br>
+탄소 비용은 PF 페널티와 유사한 수준의 비용 요인으로 성장한다.
+df['Total_Cost_With_Carbon'] = (
+                                    df['Energy_Cost_KRW'] +
+                                    df['PF_Penalty_KRW'] +
+                                    df['Carbon_Cost_KRW']
+                                )
+								
+print(df[['Energy_Cost_KRW', 'PF_Penalty_KRW', 'Carbon_Cost_KRW', 'Total_Cost_With_Carbon']].head())
+   Energy_Cost_KRW  PF_Penalty_KRW  Carbon_Cost_KRW  Total_Cost_With_Carbon
+0          200.027    13945.224493          36.9305            14182.181993
+1          252.400    17609.188391          46.6000            17908.188391
+2          204.444    14257.841025          37.7460            14500.031025
+3          208.861    14569.441815          38.5615            14816.864315
+4          241.042    16820.637064          44.5030            17106.182064
+
