@@ -19,6 +19,10 @@ log.setLevel(logging.ERROR)
 stream_queue = queue.Queue(maxsize=100)
 recent_cost_history = []
 
+# [누적 변수] 서버가 켜져 있는 동안 수치를 계속 합산함
+total_human_cost = 0.0
+total_ai_cost = 0.0
+
 def event_stream():
     """ 큐에 쌓인 최적화 결과를 하나씩 꺼내 SSE 형식으로 전송 """
     while True:
@@ -35,6 +39,10 @@ def stream():
 
 @app.route('/ingest', methods=['POST'])
 def ingest_data():
+
+    # [수정 핵심] 아래 두 줄을 반드시 추가하여 전역 변수임을 명시하십시오.
+    global total_human_cost, total_ai_cost
+
     raw_row = request.json
     if not raw_row:
         return jsonify({"error": "No data"}), 400
@@ -45,6 +53,11 @@ def ingest_data():
             human_cost = float(raw_row.get("Human_Energy_Cost") or 0)
             ai_cost = float(raw_row.get("AI_Energy_Cost") or human_cost)
 
+            # 실시간 누적 합산
+            total_human_cost += human_cost
+            total_ai_cost += ai_cost
+            
+
             # [수정] 프론트로 넘길 데이터에 PSI 값 2개 추가
             processed_data = {
                 "type": "cost",
@@ -52,7 +65,10 @@ def ingest_data():
                 "actual": human_cost,
                 "projected": ai_cost,
                 "psi_before": float(raw_row.get("PSI") or 0),  # 최적화 이전 PSI
-                "psi_after": float(raw_row.get("AI_PSI") or 0)  # 최적화 이후 PSI
+                "psi_after": float(raw_row.get("AI_PSI") or 0),  # 최적화 이후 PSI
+                "total_human_cost": total_human_cost,
+                "total_ai_cost": total_ai_cost,
+ 
             }
 
             recent_cost_history.append(processed_data)
@@ -100,22 +116,16 @@ def fmt(v):
 
 @app.get("/")
 def home():
-    # === 예시 데이터(나중에 네 데이터/모델 결과로 교체) ===
-    current_cost = 35640
-    previous_cost = 32500
-    potential_savings = 804000
-    unit = "원"
 
-    cost_change = current_cost - previous_cost
-    change_percentage = (cost_change / previous_cost * 100) if previous_cost else 0.0
-    is_increase = cost_change > 0
+    # [수정 1] 전역 변수 참조 명시 (읽기 전용이지만 명시하는 것이 안전)
+    global total_human_cost, total_ai_cost, recent_cost_history
 
     # 시간대별 전기료 추이(에어리어 차트용)
     if recent_cost_history:
-        cost_trend_data = recent_cost_history[-10:]  # 최근 10개
+        display_trend_data = recent_cost_history[-10:]  # 최근 10개
     else:
     # 데이터가 하나도 없을 때만 예시 데이터 출력
-        cost_trend_data = [
+        display_trend_data = [
             {"time": "09:00", "actual": 28500, "projected": 28500},
             {"time": "10:00", "actual": 32000, "projected": 30500},
             {"time": "11:00", "actual": 35000, "projected": 31800},
@@ -126,23 +136,16 @@ def home():
             {"time": "16:00", "actual": 37000, "projected": 31500},
         ]
 
-    processes = [
-        {"processName": "원자재 입고", "powerConsumption": 45.2, "maxPower": 60, "cost": 5424, "efficiency": 85, "status": "normal"},
-        {"processName": "전처리 공정", "powerConsumption": 88.5, "maxPower": 100, "cost": 10620, "efficiency": 72, "status": "warning"},
-        {"processName": "조립 라인", "powerConsumption": 125.8, "maxPower": 130, "cost": 15096, "efficiency": 65, "status": "critical"},
-        {"processName": "품질 검사", "powerConsumption": 32.5, "maxPower": 50, "cost": 3900, "efficiency": 88, "status": "normal"},
-    ]
-
     return render_template(
         "index.html",
-        current_cost=current_cost,
-        previous_cost=previous_cost,
-        potential_savings=potential_savings,
-        unit=unit,
-        is_increase=is_increase,
-        change_percentage=change_percentage,
-        cost_trend_data=cost_trend_data,
-        processes=processes,
+        current_cost=total_human_cost,
+        previous_cost=32500, # 예시용 고정값
+        potential_savings=total_human_cost - total_ai_cost,
+        unit="원",
+       is_increase=(total_human_cost > 32500),
+        change_percentage=8.5,
+        cost_trend_data=display_trend_data,
+        processes=[],
     )
 
 # ✅ 팀원 app.py의 API를 app1.py에 결합 (포트/앱 분리 없이 동일 서버에서 처리)

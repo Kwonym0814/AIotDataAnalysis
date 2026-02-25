@@ -29,6 +29,11 @@
 				// 백엔드에서 보낸 psi_before, psi_after 데이터를 사용합니다.
 				updatePSIGauge('before', data.psi_before);
 				updatePSIGauge('after', data.psi_after);
+				
+				// [중요 - 수치 자동 업데이트!]
+				// 백엔드가 보낸 'total_human_cost'를 화면에 꽂아주는 함수 호출
+				updateLiveKPIs(data);
+				
             } else {
                 updateProcessUI(data);
                 updateProcessCharts(data);
@@ -113,6 +118,34 @@
             costChart.update('none');
         }
     }
+	
+	function updateLiveKPIs(data) {
+		// HTML에 정의한 ID들을 찾습니다.
+		const costEl = document.getElementById('realtime-accumulated-cost');
+		const savingsEl = document.getElementById('realtime-potential-savings');
+
+		if (costEl && data.total_human_cost !== undefined) {
+			// 천단위 콤마 포맷팅 후 삽입
+			costEl.textContent = Math.floor(data.total_human_cost).toLocaleString();
+		}
+
+		if (savingsEl && data.potential_savings !== undefined) {
+			savingsEl.textContent = Math.floor(data.potential_savings).toLocaleString() + " 원";
+		}
+	}
+	
+	// [중요] onmessage 내부에서 위 함수를 호출해야 합니다.
+	source.onmessage = function(event) {
+		const data = JSON.parse(event.data);
+		if (data.type === "cost") {
+			updateCostChart(data);
+			updatePSIGauge('before', data.psi_before);
+			updatePSIGauge('after', data.psi_after);
+			
+			// 추가된 수치 업데이트 함수 호출
+			updateLiveKPIs(data);
+		}
+	};
 
     // 공정 수치 텍스트 업데이트
     function updateProcessUI(data) {

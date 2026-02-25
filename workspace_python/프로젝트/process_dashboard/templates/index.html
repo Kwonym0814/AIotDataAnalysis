@@ -374,65 +374,59 @@
 
                 <!-- [Row 2] 카드들 -->
                 <div class="energy-glow-area">
-                  <div class="grid gap-4 lg:grid-cols-2 items-stretch">
+				  <div class="grid gap-4 lg:grid-cols-2 items-stretch">
 
-                    <!-- 전기료 카드 -->
-                    <div class="glow-card kpi-cyan p-6">
-                      <div class="flex items-start justify-between">
-                        <div>
-                          <div class="text-sm text-white/70 font-bold">이번 달 누적 전기료</div>
-                          <div class="text-4xl font-black mt-2 neon-value whitespace-nowrap">
-                            <span id="realtime-accumulated-cost">{{ current_cost | fmt }}</span>
+					<div class="glow-card kpi-cyan p-6">
+					  <div class="flex items-start justify-between">
+						<div>
+						  <div class="text-sm text-white/70 font-bold">이번 달 누적 전기료</div>
+						  <div class="text-4xl font-black mt-2 neon-value whitespace-nowrap">
+							<span id="realtime-accumulated-cost">{{ current_cost | fmt }}</span>
 							<span class="text-xl ml-1 text-white/80">원</span>
-                          </div>
-                        </div>
-                        <div class="bg-white/10 p-3 rounded-2xl">⚡</div>
-                      </div>
+						  </div>
+						</div>
+						<div class="bg-white/10 p-3 rounded-2xl">⚡</div>
+					  </div>
 
-                      <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
-                        <div class="text-sm font-bold text-white/80">
-                          전월 대비
-                          <span class="font-black text-white">
-                            {% if is_increase %}+{% endif %}{{ change_percentage | round(1) }}%
-                          </span>
-                        </div>
+					  <div class="mt-4 pt-4 border-t border-white/10 flex items-center justify-between">
+						<div class="text-sm font-bold text-white/80">
+						  전월 대비
+						  <span class="font-black text-white">
+							{% if is_increase %}+{% endif %}{{ change_percentage | round(1) }}%
+						  </span>
+						</div>
 
-                        <div class="text-right">
-                          <div class="text-xs text-white/60 font-bold">이번 달 절감 가능액</div>
-                          <div class="font-black text-white">{{ potential_savings | fmt }} 원</div>
-                        </div>
-                      </div>
+						<div class="text-right">
+						  <div class="text-xs text-white/60 font-bold">이번 달 절감 가능액</div>
+						  <div class="font-black text-white" id="realtime-potential-savings">
+							{{ potential_savings | fmt }} 원
+						  </div>
+						</div>
+					  </div>
 
-                      <!-- ✅ 카드 하단: 이번 달 예측 전기료(최적화 전/후) -->
-                      <div class="mt-5 pt-4 border-t border-white/10">
-                        <div class="flex items-center justify-between mb-2">
-                          <div class="text-sm font-black text-white">이번 달 예측 전기료</div>
-                          <div class="text-xs text-white/50">최적화 전 vs 최적화 후</div>
-                        </div>
+					  <div class="mt-5 pt-4 border-t border-white/10">
+						<div class="flex items-center justify-between mb-2">
+						  <div class="text-sm font-black text-white">이번 달 예측 전기료</div>
+						  <div class="text-xs text-white/50">최적화 전 vs 최적화 후</div>
+						</div>
+						<div class="h-[90px] chart-glow">
+						  <canvas id="monthlyForecastBar"></canvas>
+						</div>
+					  </div>
+					</div>
 
-                        <div class="h-[90px] chart-glow">
-                          <canvas id="monthlyForecastBar"></canvas>
-                        </div>
-                      </div>
-                    </div>
+					<div class="glow-card p-6">
+					  <div class="flex items-center justify-between mb-3">
+						<h2 class="text-xl font-black monthly-title">월별 전기료 추이</h2>
+						<span class="text-sm monthly-sub font-bold">1~12월</span>
+					  </div>
+					  <div class="h-[240px] xl:h-[300px] 2xl:h-[340px] flex flex-col min-h-0">
+						<canvas id="monthlyCostTrend" class="flex-1"></canvas>
+					  </div>
+					</div>
 
-
-                    <!-- 월별 전기료 추이 -->
-                    <!-- ✅ 여기만 변경: kpi-cyan 제거해서 다크 테마로 원복 -->
-                    <div class="glow-card p-6">
-                      <div class="flex items-center justify-between mb-3">
-                        <h2 class="text-xl font-black monthly-title">월별 전기료 추이</h2>
-                        <span class="text-sm monthly-sub font-bold">1~12월</span>
-                      </div>
-
-                      <div class="h-[240px] xl:h-[300px] 2xl:h-[340px] flex flex-col min-h-0">
-                        <canvas id="monthlyCostTrend" class="flex-1"></canvas>
-                      </div>
-                    </div>
-
-
-                  </div>
-                </div>
+				  </div>
+				</div>
 
     </section>
 	<!-- =========================
