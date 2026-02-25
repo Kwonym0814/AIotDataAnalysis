@@ -1,0 +1,420 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>공정 통합 모니터링 시스템</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard_1.css') }}">
+
+  <style>
+    /* [SECTION: 레이아웃 및 공정 모니터링 스타일] */
+    #twinStage {
+      display: flex;
+      width: 100%;
+      height: 600px;
+      overflow: hidden;
+      background: #020617;
+      border-radius: 1rem 1rem 0 0;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      position: relative;
+    }
+
+    #twinMapContainer {
+      flex: 1 1 auto;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      transition: flex 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      min-width: 0;
+    }
+
+    .factory-wrapper {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .map-relative-area {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 16 / 9;
+    }
+
+    /* [SECTION: 실시간 파라미터 카드 디자인] */
+    .parameter-card {
+      position: absolute;
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(12px);
+      border-radius: 10px;
+      padding: 12px;
+      cursor: pointer;
+      z-index: 30;
+      min-width: 140px;
+      box-shadow: 0 0 20px rgba(0,0,0,0.4);
+      transition: all 0.3s ease;
+    }
+
+    .card-cyan { border: 1px solid rgba(34, 211, 238, 0.5); box-shadow: 0 0 15px rgba(34, 211, 238, 0.2); }
+    .card-indigo { border: 1px solid rgba(129, 140, 248, 0.5); box-shadow: 0 0 15px rgba(129, 140, 248, 0.2); }
+    .card-emerald { border: 1px solid rgba(52, 211, 153, 0.5); box-shadow: 0 0 15px rgba(52, 211, 153, 0.2); }
+
+    /* [SECTION: 사이드바 & 리사이저] */
+    #twinSidebar {
+      width: 0;
+      background: rgba(15, 23, 42, 0.98);
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 40;
+    }
+
+    #twinStage.sidebar-open #twinSidebar { width: 400px; }
+
+    #resizer {
+      position: absolute;
+      left: -4px;
+      top: 0;
+      width: 12px;
+      height: 100%;
+      cursor: col-resize;
+      z-index: 100;
+      background: transparent;
+    }
+    #resizer:hover { background: rgba(34, 211, 238, 0.2); }
+
+    /* [SECTION: 아코디언] */
+    .accordion-item { transition: all 0.3s ease; border-left: 4px solid transparent; }
+    .accordion-item.active-cyan { border-left-color: #22d3ee; box-shadow: inset 10px 0 20px -10px rgba(34, 211, 238, 0.2); }
+    .accordion-item.active-indigo { border-left-color: #818cf8; box-shadow: inset 10px 0 20px -10px rgba(129, 140, 248, 0.2); }
+    .accordion-item.active-emerald { border-left-color: #34d199; box-shadow: inset 10px 0 20px -10px rgba(52, 211, 153, 0.2); }
+
+    .accordion-content { max-height: 0; opacity: 0; overflow: hidden; transition: all 0.3s ease; }
+    .accordion-item.active .accordion-content { max-height: 300px; opacity: 1; margin-top: 1rem; }
+
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+    #accordionContainer:hover::-webkit-scrollbar-thumb { background: #334155; }
+
+    .resizing { cursor: col-resize; user-select: none; }
+    section[data-view] { display: none; }
+    section[data-view].active { display: block; }
+
+    /* [SECTION: 하단 알람 시스템] */
+    #alarmPanel {
+      width: 100%;
+      height: 180px;
+      background: #0f172a;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-top: none;
+      border-radius: 0 0 1rem 1rem;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 10;
+    }
+
+    /* 종이 흔들리는 애니메이션 */
+    @keyframes bell-ring {
+      0%, 100% { transform: rotate(0); }
+      20% { transform: rotate(15deg); }
+      40% { transform: rotate(-15deg); }
+      60% { transform: rotate(10deg); }
+      80% { transform: rotate(-10deg); }
+    }
+
+    .bell-active {
+      animation: bell-ring 0.6s ease-in-out infinite;
+      display: inline-block;
+      transform-origin: top center;
+    }
+
+    .alarm-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.02);
+      animation: slideUp 0.3s ease-out;
+    }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+
+<body class="p-6 bg-[#020617]">
+  <div class="max-w-7xl mx-auto space-y-6">
+
+    <div class="flex items-center justify-between gap-4 text-white">
+      <div>
+        <h1 class="text-3xl font-black tracking-tight">공정 통합 모니터링 시스템</h1>
+        <p class="text-slate-400 mt-1 italic tracking-widest text-xs">● LIVE PROCESS MONITORING</p>
+      </div>
+      <div class="flex gap-2">
+         <button class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-white font-bold hover:bg-white/10 transition-all text-sm">Report</button>
+         <button class="px-4 py-2 rounded-xl bg-cyan-500 text-slate-950 font-black hover:bg-cyan-400 transition-all text-sm">Export Data</button>
+      </div>
+    </div>
+
+    <div class="tabs-wrap w-full">
+      <button class="tab-btn" data-tab="energy" data-active="true">⚡ 전기료 분석</button>
+      <button class="tab-btn" data-tab="process" data-active="false">📉 공정 흐름</button>
+    </div>
+
+    <section data-view="energy" class="active space-y-4"></section>
+
+    <section data-view="process" class="space-y-0">
+      <div id="twinStage">
+        <div id="twinMapContainer">
+          <div class="factory-wrapper">
+            <div class="map-relative-area">
+              <img class="h-full w-auto object-contain opacity-40" src="{{ url_for('static', filename='img/process_map.png') }}" alt="factory">
+
+              <div id="card-stage-1" class="parameter-card card-cyan" style="top: 15%; left: 12%;" onclick="toggleControl('stage-1')">
+                <div class="flex justify-between text-[10px] font-bold text-cyan-400 mb-1"><span>STAGE 01</span><span class="animate-pulse">● LIVE</span></div>
+                <div class="text-white font-black text-2xl tabular-nums" id="val-stage-1">1240</div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-tighter">Blast Furnace (°C)</div>
+              </div>
+
+              <div id="card-stage-2" class="parameter-card card-indigo" style="top: 42%; left: 48%;" onclick="toggleControl('stage-2')">
+                <div class="flex justify-between text-[10px] font-bold text-indigo-400 mb-1"><span>STAGE 02</span><span class="animate-pulse">● LIVE</span></div>
+                <div class="text-white font-black text-2xl tabular-nums" id="val-stage-2">450</div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-tighter">Oxygen Supply (Nm³/h)</div>
+              </div>
+
+              <div id="card-stage-3" class="parameter-card card-emerald" style="top: 58%; left: 72%;" onclick="toggleControl('stage-3')">
+                <div class="flex justify-between text-[10px] font-bold text-emerald-400 mb-1"><span>STAGE 03</span><span class="animate-pulse">● LIVE</span></div>
+                <div class="text-white font-black text-2xl tabular-nums" id="val-stage-3">8.5</div>
+                <div class="text-[10px] text-slate-500 uppercase tracking-tighter">Rolling Mill (m/s)</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <aside id="twinSidebar">
+          <div id="resizer"></div>
+          <div class="p-6 border-b border-slate-800 flex justify-between items-start min-w-[320px] bg-slate-900 text-white z-50">
+            <div>
+              <h3 class="font-bold text-sm tracking-widest uppercase">System Config</h3>
+              <button onclick="clearAllStages()" class="text-[9px] text-slate-500 hover:text-red-400 font-bold mt-1 transition-colors">RESET ALL PANELS</button>
+            </div>
+            <button onclick="closeSidebar()" class="text-slate-400 hover:text-white p-2 -mr-2 transition-transform hover:rotate-90">✕</button>
+          </div>
+          <div id="accordionContainer" class="flex-1 overflow-y-auto p-4 space-y-4 min-w-[320px] custom-scrollbar"></div>
+        </aside>
+      </div>
+
+      <div id="alarmPanel">
+        <div class="alarm-header px-5 py-3 border-b border-white/5 bg-white/5 flex justify-between items-center">
+          <div class="flex items-center gap-2">
+            <span id="alarmBell" class="text-amber-500 text-lg">🔔</span>
+            <h4 class="text-white font-bold text-xs uppercase tracking-widest">System Log & Alerts</h4>
+          </div>
+          <div class="flex items-center gap-4">
+            <span id="alarmStatus" class="text-[10px] text-emerald-500 font-bold tracking-tighter animate-pulse">● SYSTEM NORMAL</span>
+            <span id="alarmCount" class="text-[10px] text-slate-500 font-mono">0 events</span>
+          </div>
+        </div>
+        <div id="alarmList" class="custom-scrollbar p-4 flex-1 overflow-y-auto">
+          <div id="emptyMsg" class="h-full flex items-center justify-center">
+            <p class="text-slate-600 text-xs italic tracking-tight">No critical alerts detected...</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    const STAGE_CONFIG = {
+      'stage-1': { order: 1, name: 'Blast Furnace', base: 1240, range: 10, unit: '°C', threshold: 1246, color: 'cyan' },
+      'stage-2': { order: 2, name: 'Oxygen Supply', base: 450, range: 20, unit: 'Nm³/h', threshold: 465, color: 'indigo' },
+      'stage-3': { order: 3, name: 'Rolling Mill', base: 8.5, range: 0.5, unit: 'm/s', threshold: 8.9, color: 'emerald' }
+    };
+    let activeStages = new Set();
+    let bellTimer = null; // 종 애니메이션 제어용 타이머
+
+    // 라이브 업데이트 로직 (기존 유지)
+    function startLiveUpdates() {
+      setInterval(() => {
+        Object.keys(STAGE_CONFIG).forEach(id => {
+          const conf = STAGE_CONFIG[id];
+          const liveVal = parseFloat((conf.base + (Math.random() * conf.range - conf.range/2)).toFixed(id === 'stage-3' ? 1 : 0));
+          const mainValEl = document.getElementById(`val-${id}`);
+          if(mainValEl) mainValEl.innerText = liveVal;
+          const sideValEl = document.getElementById(`side-val-${id}`);
+          if(sideValEl) sideValEl.innerText = liveVal + conf.unit;
+
+          // 임계치 초과 시 알람 트리거 (확률적 발생)
+          if (liveVal > conf.threshold && Math.random() > 0.95) triggerAlarm(conf.name, liveVal, conf.unit);
+        });
+      }, 1000);
+    }
+
+    // [중요 수정] 알람 발생 시 동작
+    function triggerAlarm(name, val, unit) {
+      const list = document.getElementById('alarmList');
+      const emptyMsg = document.getElementById('emptyMsg');
+      if (emptyMsg) emptyMsg.remove();
+
+      // 1. 종 흔들기 제어 (3초)
+      const bell = document.getElementById('alarmBell');
+      if (bell) {
+        bell.classList.add('bell-active');
+        if (bellTimer) clearTimeout(bellTimer);
+        bellTimer = setTimeout(() => {
+          bell.classList.remove('bell-active');
+          bellTimer = null;
+        }, 3000);
+      }
+
+      // 2. 상태 텍스트 변경
+      const statusLabel = document.getElementById('alarmStatus');
+      statusLabel.innerText = "● ATTENTION REQUIRED";
+      statusLabel.classList.remove('text-emerald-500');
+      statusLabel.classList.add('text-amber-500');
+
+      // 3. 로그 추가
+      const time = new Date().toLocaleTimeString('ko-KR', { hour12: false });
+      const item = document.createElement('div');
+      item.className = "alarm-item";
+      item.innerHTML = `
+        <span class="text-slate-500 font-mono text-[10px] w-20">${time}</span>
+        <span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-amber-500/10 text-amber-500 border border-amber-500/20 shadow-[0_0_10px_rgba(245,158,11,0.2)]">WARNING</span>
+        <span class="text-slate-300 text-[11px] font-medium italic">High status in <b class="text-white">${name}</b>: ${val}${unit}</span>`;
+
+      list.prepend(item);
+      if (list.children.length > 10) list.lastElementChild.remove();
+      document.getElementById('alarmCount').innerText = `${list.children.length} events logged`;
+    }
+
+    /* 사이드바 리사이징 로직 */
+    const resizer = document.getElementById('resizer');
+    const sidebar = document.getElementById('twinSidebar');
+    const twinStage = document.getElementById('twinStage');
+    const container = document.getElementById('accordionContainer');
+    let isResizing = false;
+
+    resizer.addEventListener('mousedown', (e) => {
+      isResizing = true;
+      document.body.classList.add('resizing');
+      sidebar.style.transition = 'none';
+      e.preventDefault();
+    });
+
+    window.addEventListener('mousemove', (e) => {
+      if (!isResizing) return;
+      const stageRect = twinStage.getBoundingClientRect();
+      const newWidth = stageRect.right - e.clientX;
+      if (newWidth > 300 && newWidth < stageRect.width * 0.8) {
+        sidebar.style.width = `${newWidth}px`;
+      }
+    });
+
+    window.addEventListener('mouseup', () => {
+      isResizing = false;
+      document.body.classList.remove('resizing');
+      sidebar.style.transition = 'width 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    });
+
+    function toggleControl(id) {
+      if (!twinStage.classList.contains('sidebar-open')) sidebar.style.width = '400px';
+      twinStage.classList.add('sidebar-open');
+      renderAccordion(id);
+
+      document.querySelectorAll('.accordion-item').forEach(el => el.classList.remove('active'));
+      const activeItem = document.getElementById(`item-${id}`);
+      if (activeItem) activeItem.classList.add('active');
+    }
+
+    function renderAccordion(id) {
+      if (activeStages.has(id)) return;
+      activeStages.add(id);
+      const conf = STAGE_CONFIG[id];
+      const item = document.createElement('div');
+      item.id = `item-${id}`;
+      item.dataset.order = conf.order;
+      item.className = `accordion-item border border-slate-800 rounded-xl p-4 bg-slate-900/30 mb-4 active active-${conf.color}`;
+      item.innerHTML = `
+        <div class="flex justify-between items-center cursor-pointer" onclick="this.parentElement.classList.toggle('active')">
+          <div class="text-xs font-black text-slate-400 uppercase tracking-tighter">${conf.name}</div>
+          <span class="text-${conf.color}-400 font-mono text-sm font-bold" id="side-val-${id}">${conf.base}${conf.unit}</span>
+        </div>
+        <div class="accordion-content">
+          <div class="pt-4 space-y-4">
+             <div class="flex justify-between text-[10px] text-slate-500 uppercase">
+               <span>Safety Threshold</span>
+               <span class="text-amber-500" id="threshold-val-${id}">${conf.threshold}${conf.unit}</span>
+             </div>
+             <input type="range" min="${conf.base - 50}" max="${conf.base + 50}" value="${conf.threshold}"
+                    class="w-full h-1 bg-slate-800 rounded-lg appearance-none accent-${conf.color}-500"
+                    oninput="updateThreshold('${id}', this.value)">
+             <div class="flex gap-2">
+               <button onclick="resetStage('${id}')" class="flex-1 py-2 text-[9px] bg-white/5 text-slate-400 rounded border border-white/5 hover:bg-white/10 transition-all font-bold">RESET VALUE</button>
+               <button onclick="removeItem('${id}')" class="flex-1 py-2 text-[9px] bg-red-500/5 text-red-500/40 rounded border border-red-500/10 hover:bg-red-500/20 hover:text-red-400 transition-all font-bold">REMOVE</button>
+             </div>
+          </div>
+        </div>`;
+
+      const existing = Array.from(container.children);
+      const next = existing.find(el => parseInt(el.dataset.order) > conf.order);
+      if (next) container.insertBefore(item, next);
+      else container.appendChild(item);
+    }
+
+    function updateThreshold(id, val) {
+      STAGE_CONFIG[id].threshold = parseFloat(val);
+      document.getElementById(`threshold-val-${id}`).innerText = val + STAGE_CONFIG[id].unit;
+    }
+
+    function resetStage(id) {
+      const conf = STAGE_CONFIG[id];
+      const slider = document.querySelector(`#item-${id} input[type="range"]`);
+      if(slider) {
+        slider.value = conf.base + 6;
+        updateThreshold(id, slider.value);
+      }
+    }
+
+    function removeItem(id) {
+      document.getElementById(`item-${id}`).remove();
+      activeStages.delete(id);
+      if (activeStages.size === 0) closeSidebar();
+    }
+
+    function closeSidebar() {
+      twinStage.classList.remove('sidebar-open');
+      sidebar.style.width = '0px';
+    }
+
+    function clearAllStages() {
+      if (confirm("모니터링 대상 공정을 모두 비우시겠습니까?")) {
+        container.innerHTML = ''; activeStages.clear(); closeSidebar();
+      }
+    }
+
+    // 탭 전환 로직
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.dataset.active = "false");
+        btn.dataset.active = "true";
+        document.querySelectorAll('section[data-view]').forEach(v => {
+          v.classList.toggle('active', v.dataset.view === btn.dataset.tab);
+        });
+      });
+    });
+
+    // 시작
+    startLiveUpdates();
+  </script>
+</body>
+</html>
