@@ -62,6 +62,48 @@ body{
   .proc-row{ grid-template-columns: 1fr; }
 }
 
+
+
+body{
+  background: var(--bg);
+  color:#e5e7eb;
+}
+
+.muted{ color: var(--muted); }
+
+.soft-card{
+  background: var(--card);
+  border: 1px solid var(--stroke);
+  border-radius: 18px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+}
+
+
+/* =========================================
+   공정 카드: 데스크탑(큰 화면) 1x4 고정
+========================================= */
+.proc-scroll{
+  overflow: visible;     /* 큰 화면은 스크롤 안 씀 */
+}
+
+.proc-row{
+  display: grid;
+  gap: 14px;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 1x4 고정 */
+}
+
+.proc-item{
+  min-width: 0;
+}
+
+/* 화면 좁아지면 2열 → 1열 */
+@media (max-width: 1200px){
+  .proc-row{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 680px){
+  .proc-row{ grid-template-columns: 1fr; }
+}
+
 /* =========================================
    Tabs 스타일
 ========================================= */
@@ -314,6 +356,15 @@ html[data-theme="light"] .tab-btn{
   height: 100%;
   max-width: 360px;
   display:block;
+}
+
+/* [PSI 게이지 동적 제어 핵심 설정] */
+/* SVG transform attribute 사용: rotate(angle cx cy) 형식으로 중심 지정 */
+.psi-progress {
+  /* 프로그레스 호 애니메이션: stroke-dashoffset 변경 */
+  transition: stroke-dashoffset 1s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  will-change: stroke-dashoffset;
+  pointer-events: none;
 }
 
 /* ? 아이콘 + 말풍선 */
@@ -820,6 +871,182 @@ html[data-theme="light"] .glow-card{
 
 html[data-theme="light"] .monthly-title{ color: rgba(15,23,42,0.92); }
 html[data-theme="light"] .monthly-sub{ color: rgba(15,23,42,0.55); }
+
+/* ============================================
+   [SECTION: ETS 배출권 패널 스타일]
+   ============================================ */
+
+.krx-ticker{
+  position: relative;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(0,0,0,.35);
+  border-radius: 14px;
+  padding: 10px 0;
+  overflow: hidden;
+}
+
+.krx-ticker__track{
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  white-space: nowrap;
+  padding: 0 14px;
+  will-change: transform;
+  animation: krxMarquee 26s linear infinite;
+}
+
+.krx-ticker:hover .krx-ticker__track{
+  animation-play-state: paused; /* 마우스 올리면 멈춤 */
+}
+
+@keyframes krxMarquee{
+  0%   { transform: translateX(0); }
+  100% { transform: translateX(-50%); } /* JS에서 내용을 2번 복제해서 -50%로 정확히 루프 */
+}
+
+.krx-pill{
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.10);
+  background: rgba(255,255,255,.04);
+  font-size: 12px;
+  color: rgba(255,255,255,.78);
+}
+
+.krx-sym{ font-weight: 800; letter-spacing: .06em; color: rgba(255,255,255,.85); }
+.krx-px{ font-weight: 900; font-variant-numeric: tabular-nums; color: rgba(255,255,255,.92); }
+.krx-chg{ font-weight: 900; font-variant-numeric: tabular-nums; }
+.krx-up{ color: rgba(248,113,113,.95); }    /* 빨강 (상승) */
+.krx-dn{ color: rgba(96,165,250,.95); }     /* 파랑 (하락) */
+.krx-flat{ color: rgba(148,163,184,.95); }  /* 중립 */
+
+.krx-dot{
+  width: 4px; height: 4px; border-radius: 999px;
+  background: rgba(255,255,255,.25);
+}
+
+.krx-ticker__fade{
+  position: absolute; top: 0; bottom: 0;
+  width: 38px;
+  pointer-events: none;
+  z-index: 2;
+}
+.krx-ticker__fade--l{
+  left: 0;
+  background: linear-gradient(to right, rgba(0,0,0,.65), rgba(0,0,0,0));
+}
+.krx-ticker__fade--r{
+  right: 0;
+  background: linear-gradient(to left, rgba(0,0,0,.65), rgba(0,0,0,0));
+}
+
+.krx-glow { text-shadow: 0 0 18px rgba(34,211,238,.18); }
+
+/* ETS Board background: 화려한 배경 */
+.ets-board{
+  position: relative;
+  background: #070a12;
+  overflow: hidden;
+}
+
+/* ✅ 배경 이미지 (존재하면 적용, 없으면 깔끔한 그라데이션) */
+.ets-board::before{
+  content:"";
+  position:absolute; inset:0;
+  background: linear-gradient(135deg, 
+    rgba(10, 20, 50, 0.95) 0%,
+    rgba(15, 35, 70, 0.92) 50%,
+    rgba(8, 18, 40, 0.95) 100%);
+  opacity: .95;
+  filter: saturate(1.05) contrast(1.05);
+  pointer-events:none;
+}
+
+/* ✅ 전광판 느낌: 살짝 어두운 비네팅 + 글자 가독성 */
+.ets-board::after{
+  content:"";
+  position:absolute; inset:0;
+  background:
+    radial-gradient(900px 480px at 20% 10%, rgba(0,0,0,0.10), transparent 55%),
+    radial-gradient(900px 520px at 80% 10%, rgba(0,0,0,0.18), transparent 60%),
+    linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.35));
+  pointer-events:none;
+}
+
+.ets-board > *{ position: relative; z-index: 1; }
+
+/* ETS Ticker 스타일 */
+.ets-ticker{
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(255,255,255,0.04);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+html[data-theme="light"] .ets-ticker{
+  border-color: rgba(15,23,42,0.12);
+  background: rgba(15,23,42,0.03);
+}
+
+.ets-ticker-mask{
+  position: relative;
+  overflow: hidden;
+  padding: 10px 12px;
+}
+
+/* 좌우 페이드(거래소 감성) */
+.ets-ticker-mask::before,
+.ets-ticker-mask::after{
+  content:"";
+  position:absolute; top:0; bottom:0;
+  width: 42px;
+  pointer-events:none;
+  z-index: 2;
+}
+.ets-ticker-mask::before{ left:0; background: linear-gradient(to right, rgba(5,6,11,1), rgba(5,6,11,0)); }
+.ets-ticker-mask::after { right:0; background: linear-gradient(to left, rgba(5,6,11,1), rgba(5,6,11,0)); }
+
+html[data-theme="light"] .ets-ticker-mask::before{ background: linear-gradient(to right, rgba(246,247,251,1), rgba(246,247,251,0)); }
+html[data-theme="light"] .ets-ticker-mask::after { background: linear-gradient(to left, rgba(246,247,251,1), rgba(246,247,251,0)); }
+
+.ets-ticker-track{
+  display: inline-flex;
+  gap: 14px;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+  animation: etsMarquee 26s linear infinite;
+}
+
+.ets-pill{
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.10);
+  background: rgba(0,0,0,0.20);
+}
+
+html[data-theme="light"] .ets-pill{
+  border-color: rgba(15,23,42,0.12);
+  background: rgba(255,255,255,0.75);
+}
+
+.ets-sym{ font-weight: 900; letter-spacing: -0.02em; }
+.ets-price{ font-weight: 900; font-variant-numeric: tabular-nums; }
+.ets-chg{ font-weight: 900; font-variant-numeric: tabular-nums; opacity: .95; }
+
+.ets-up{ color: rgba(248,113,113,0.95); }   /* red */
+.ets-dn{ color: rgba(96,165,250,0.95); }    /* blue */
+
+@keyframes etsMarquee{
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
 
 
 

@@ -5,60 +5,41 @@
 
 (() => {
   // -----------------------------
-  // 0) Data (없으면 더미)
+  // 0) Data & 변수 선언 (중복 선언 방지 통합)
   // -----------------------------
-  const forecast = window.MONTHLY_FORECAST || { before: 18500000, after: 15200000 };
+  
+  // 백엔드 데이터 우선 로드
+  const humanCosts = Array.isArray(window.MONTHLY_HUMAN_DATA) ? window.MONTHLY_HUMAN_DATA : [0,0,0,0,0,0,0,0,0,0,0,0];
+  const aiCosts = Array.isArray(window.MONTHLY_AI_DATA) ? window.MONTHLY_AI_DATA : [0,0,0,0,0,0,0,0,0,0,0,0];
 
-  const monthLabels =
-    Array.isArray(window.MONTH_LABELS) && window.MONTH_LABELS.length === 12
-      ? window.MONTH_LABELS
-      : ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+  const monthLabels = ["1월","2월","3월","4월","5월","6월","7월","8월","9월","10월","11월","12월"];
+  const highlightIndex = new Date().getMonth(); 
 
-  const monthlyCosts =
-    Array.isArray(window.MONTHLY_COSTS) && window.MONTHLY_COSTS.length === 12
-      ? window.MONTHLY_COSTS
-      : [12000000,13500000,14200000,15000000,16800000,17500000,18200000,19000000,17600000,16200000,15500000,17000000];
-
-  const highlightIndex = Number.isInteger(window.HIGHLIGHT_MONTH_INDEX) ? window.HIGHLIGHT_MONTH_INDEX : 3;
+  const forecast = { 
+    before: humanCosts[highlightIndex] || 0, 
+    after: aiCosts[highlightIndex] || 0 
+  };
 
   // -----------------------------
-  // 1) Theme helpers
+  // 1) Helper Functions (내부 함수 선언)
   // -----------------------------
-  function isLightTheme() {
-    return document.documentElement.getAttribute("data-theme") === "light";
-  }
-
-  function axisText() {
-    return isLightTheme() ? "rgba(15,23,42,0.78)" : "rgba(235,245,255,0.72)";
-  }
-
-  function axisGrid() {
-    return isLightTheme() ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)";
-  }
-
+  function isLightTheme() { return document.documentElement.getAttribute("data-theme") === "light"; }
+  function axisText() { return isLightTheme() ? "rgba(15,23,42,0.78)" : "rgba(235,245,255,0.72)"; }
+  function axisGrid() { return isLightTheme() ? "rgba(15,23,42,0.10)" : "rgba(255,255,255,0.08)"; }
   function tooltipNow() {
     const light = isLightTheme();
     return {
       backgroundColor: light ? "rgba(255,255,255,0.96)" : "rgba(10,12,18,0.96)",
       borderColor: light ? "rgba(15,23,42,0.12)" : "rgba(255,255,255,0.12)",
-      borderWidth: 1,
-      padding: 12,
+      borderWidth: 1, padding: 12,
       titleColor: light ? "rgba(15,23,42,0.92)" : "rgba(235,245,255,0.90)",
       bodyColor: light ? "rgba(15,23,42,0.92)" : "rgba(235,245,255,0.90)",
-      displayColors: false
+      displayColors: true
     };
   }
-
-  function unitTextColor() {
-    return isLightTheme() ? "rgba(15,23,42,0.55)" : "rgba(235,245,255,0.55)";
-  }
-
-  function fmtWon(v) {
-    const n = Number(v);
-    if (!Number.isFinite(n)) return String(v);
-    return n.toLocaleString("ko-KR");
-  }
-
+  function unitTextColor() { return isLightTheme() ? "rgba(15,23,42,0.55)" : "rgba(235,245,255,0.55)"; }
+  function fmtWon(v) { return Number(v).toLocaleString("ko-KR"); }
+  
   function formatCompactWon(n) {
     const v = Number(n);
     if (!Number.isFinite(v)) return String(n);
@@ -69,60 +50,37 @@
 
   function getUnitCaption(maxVal) {
     const abs = Math.abs(Number(maxVal));
-    if (!Number.isFinite(abs)) return "(단위: 원)";
-    if (abs >= 1e9) return "(단위: B원 = 1,000,000,000원)";
-    return "(단위: M원 = 1,000,000원)";
+    if (abs >= 1e9) return "(단위: B원 = 10억)";
+    return "(단위: M원 = 100만)";
   }
 
-  const maxMonthly = Math.max(...monthlyCosts.map(v => Number(v) || 0));
+  // 🚨 [필수 확인] 아래 변수들은 이 위치에서 한 번만 선언되어야 합니다.
+  const maxMonthly = Math.max(...humanCosts, ...aiCosts, 1);
   const unitCaption = getUnitCaption(maxMonthly);
 
   // -----------------------------
-  // 2) Plugin: 상단 라벨 + 링
+  // 2) Plugin: 상단 라벨 + 링 (데이터셋 0번 기준 유지)
   // -----------------------------
   const CapsuleTopLabelPlugin = {
     id: "capsuleTopLabelPlugin",
-    afterDatasetsDraw(chart, args, pluginOptions) {
+    afterDatasetsDraw(chart) {
       const { ctx } = chart;
-      const meta = chart.getDatasetMeta(0);
-      if (!meta || !meta.data) return;
+      // 최적화 이후(데이터셋 1번) 위에 수치 표시
+      const meta = chart.getDatasetMeta(1); 
+      if (!meta || chart.data.datasets.length < 2) return;
 
-      const data = chart.data.datasets[0].data;
-      const fontSize = pluginOptions?.fontSize ?? 12;
-      const ringR = pluginOptions?.ringRadius ?? 6;
-      const ringStrokeW = pluginOptions?.ringStrokeWidth ?? 2;
-
+      const data = chart.data.datasets[1].data;
       ctx.save();
-      ctx.font = `800 ${fontSize}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
+      ctx.font = `800 11px system-ui`;
       ctx.textAlign = "center";
       ctx.textBaseline = "bottom";
 
       meta.data.forEach((bar, i) => {
-        const x = bar.x;
-        const yTop = bar.y;
-        const value = data[i];
-        const txt = formatCompactWon(value);
-
-        const safeGap = ringR + ringStrokeW + 10;
-        const desiredY = yTop - safeGap;
-        const yLabel = Math.max(desiredY, chart.chartArea.top + 12);
-
-        // 외곽선(배경 상관없이 또렷하게)
-        ctx.lineWidth = 3;
-        ctx.strokeStyle = "rgba(0,0,0,0.55)";
-        ctx.strokeText(txt, x, yLabel);
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillText(txt, x, yLabel);
-
-        // 링(흰색)
-        ctx.beginPath();
-        ctx.arc(x, yTop, ringR, 0, Math.PI * 2);
-        ctx.lineWidth = 2;
-        ctx.strokeStyle = "#ffffff";
-        ctx.stroke();
+        if (data[i] === 0) return; // 데이터가 0이면 그리지 않음
+        const txt = formatCompactWon(data[i]);
+        ctx.fillStyle = isLightTheme() ? "rgba(0,0,0,0.6)" : "#ffffff";
+        ctx.fillText(txt, bar.x, bar.y - 10);
       });
-
       ctx.restore();
     }
   };
@@ -175,116 +133,70 @@
   let forecastChart = null;
   let monthlyTrendChart = null;
 
-  // 4-A) 이번 달 예측 전기료 (가로 바)
+  // 4-A) 이번 달 예측 전기료
   const fCanvas = document.getElementById("monthlyForecastBar");
   if (fCanvas) {
-    const fctx = fCanvas.getContext("2d");
-
-    forecastChart = new Chart(fctx, {
+    forecastChart = new Chart(fCanvas.getContext("2d"), {
       type: "bar",
       data: {
         labels: ["최적화 전", "최적화 후"],
         datasets: [{
           data: [forecast.before, forecast.after],
-          borderRadius: 12,
-          backgroundColor: [
-            "rgba(148,163,184,0.88)", // 전: slate
-            "rgba(0,160,255,0.95)"    // 후: blue
-          ],
-          borderColor: [
-            "rgba(15,23,42,0.18)",
-            "rgba(0,180,255,0.20)"
-          ],
-          borderWidth: 1
+          borderRadius: 8,
+          backgroundColor: ["rgba(148,163,184,0.5)", "rgba(0,160,255,0.9)"],
         }]
       },
       options: {
-        indexAxis: "y",
-        responsive: true,
-        maintainAspectRatio: false,
-        plugins: {
-          legend: { display: false },
-          tooltip: Object.assign({}, tooltipNow(), {
-            callbacks: {
-              label: (ctx) => `${ctx.label}: ${fmtWon(ctx.raw)}원`
-            }
-          })
-        },
+        indexAxis: "y", responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: tooltipNow() },
         scales: {
-          x: {
-            ticks: { color: axisText(), callback: (v) => fmtWon(v), font: { weight: "700" } },
-            grid: { color: axisGrid() }
-          },
-          y: {
-            ticks: { color: axisText(), font: { weight: "800" } },
-            grid: { display: false }
-          }
+          x: { ticks: { color: axisText(), callback: v => formatCompactWon(v) }, grid: { color: axisGrid() } },
+          y: { ticks: { color: axisText(), font: { weight: "800" } }, grid: { display: false } }
         }
       }
     });
   }
 
-  // 4-B) 월별 전기료 추이 (캡슐 바)
+  // 4-B) 월별 전기료 추이 (비교형 바 차트)
   const mCanvas = document.getElementById("monthlyCostTrend");
   if (mCanvas) {
-    const mctx = mCanvas.getContext("2d");
     ensureUnitCaptionUnderCanvas(mCanvas, unitCaption);
-
-    const barColors = monthlyCosts.map((_, i) =>
-      i === highlightIndex ? "rgba(120,230,120,0.92)" : "rgba(0,160,255,0.92)"
-    );
-
-    monthlyTrendChart = new Chart(mctx, {
+    monthlyTrendChart = new Chart(mCanvas.getContext("2d"), {
       type: "bar",
       data: {
         labels: monthLabels,
-        datasets: [{
-          data: monthlyCosts,
-          borderRadius: { topLeft: 10, topRight: 10, bottomLeft: 0, bottomRight: 0 },
-          borderSkipped: "bottom",
-          borderWidth: 0,
-          backgroundColor: barColors,
-          hoverBackgroundColor: barColors,
-
-          // ✅ 고정 두께 제거 → 리사이즈 최적화
-          maxBarThickness: 52,
-          categoryPercentage: 0.9,
-          barPercentage: 0.95
-        }]
+        datasets: [
+          {
+            label: "최적화 전",
+            data: humanCosts,
+            backgroundColor: isLightTheme() ? "rgba(15,23,42,0.1)" : "rgba(255,255,255,0.1)",
+            borderRadius: 5,
+          },
+          {
+            label: "최적화 후",
+            data: aiCosts,
+            backgroundColor: "rgba(0,160,255,0.8)",
+            borderRadius: 5,
+          }
+        ]
       },
       plugins: [CapsuleTopLabelPlugin],
       options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 300 },
-        layout: { padding: { top: 6, bottom: 6 } },
+        responsive: true, maintainAspectRatio: false,
+        layout: { padding: { top: 20 } },
         plugins: {
           legend: { display: false },
-          tooltip: Object.assign({}, tooltipNow(), {
-            callbacks: {
-              title: (items) => items?.[0]?.label ?? "",
-              label: (ctx) => `${fmtWon(ctx.raw)}원`
-            }
-          }),
-          capsuleTopLabelPlugin: { fontSize: 12, ringRadius: 6, ringStrokeWidth: 2 }
+          tooltip: tooltipNow(),
         },
         scales: {
           x: {
+            grid: { display: false },
             ticks: {
-              color: axisText(),
-              font: { weight: "800" },
-              callback: function (value, index) {
-                if (index === highlightIndex) return "이번달";
-                return this.getLabelForValue(value);
-              }
-            },
-            grid: { display: false }
+              color: axisText(), font: { weight: "800" },
+              callback: function(v, i) { return i === highlightIndex ? "이번달" : monthLabels[i]; }
+            }
           },
-          y: {
-            display: false,
-            suggestedMax: maxMonthly * 1.06,
-            grace: "10%"
-          }
+          y: { display: false, suggestedMax: maxMonthly * 1.2 }
         }
       }
     });

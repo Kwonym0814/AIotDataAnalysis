@@ -55,8 +55,8 @@ def stream_factory_data(file_path, target_url, interval=1):
 if __name__ == "__main__":
     # --- 설정 값 ---
     CONFIG = {
-        "DATA_PATH": "final_2018ver.csv",
-        "API_URL": "http://127.0.0.1:5000/ingest",
+        "DATA_PATH": "final_2026ver.csv",
+        "API_URL": "http://127.0.0.1:5001/ingest",
         "INTERVAL": 1  # 1초 간격
     }
     
