@@ -45,3 +45,13 @@ import MeCab
 
 
 print("정상")
+
+import MeCab
+m = MeCab.Tagger()
+print(m.parse("이것은 한국어 형태소 분석 테스트입니다."))
+
+from konlpy.tag import Komoran
+komoran= Komoran()
+print(komoran.pos("아버지가방에들어가신다"))
+print(komoran.nouns("아버지가방에들어가신다"))
+print(komoran.morphs("아버지가방에들어가신다"))
