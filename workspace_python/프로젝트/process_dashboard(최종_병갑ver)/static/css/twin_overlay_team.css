@@ -1,0 +1,488 @@
+/* static/css/twin_overlay_team.css */
+/* Team-style Digital Twin UI (scoped, no global body overrides) */
+
+:root {
+  --sf-bg: #030213;
+  --sf-panel: rgba(15, 23, 42, 0.78);
+  --sf-border: rgba(51, 65, 85, 0.55);
+  --sf-text: #f1f5f9;
+  --sf-muted: rgba(148, 163, 184, 0.75);
+  --sf-blue: #3b82f6;
+  --sf-cyan: #06b6d4;
+  --sf-emerald: #10b981;
+}
+
+/* =========================================================
+   [LEGACY] Overlay (Popup) Styles
+   - 남겨두되, 현재 목표(공정탭 인라인 슬라이드)와는 별개.
+   - #twin-overlay DOM을 완전히 제거했다면 이 블록은 사실상 미사용.
+   ========================================================= */
+
+/* Overlay shell */
+.sf-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: none;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(6px);
+}
+.sf-overlay.active { display: block; }
+
+.sf-overlay__inner {
+  position: absolute;
+  inset: 20px;
+  border-radius: 20px;
+  overflow: hidden;
+  background: radial-gradient(1200px 800px at 30% 20%, rgba(59,130,246,0.14), transparent 55%),
+              radial-gradient(900px 700px at 80% 70%, rgba(16,185,129,0.10), transparent 55%),
+              var(--sf-bg);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.sf-overlay__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--sf-text);
+  font-weight: 900;
+}
+.sf-overlay__close:hover {
+  border-color: rgba(59,130,246,0.45);
+}
+
+.sf-overlay__grid {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 16px;
+  padding: 18px;
+}
+
+.sf-glass {
+  background: var(--sf-panel);
+  border: 1px solid var(--sf-border);
+  backdrop-filter: blur(10px);
+}
+
+/* Map (legacy overlay) */
+.sf-map {
+  border-radius: 18px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sf-map img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+.sf-cards {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* Stage cards (shared style – also used by inline) */
+.sf-stage-card {
+  position: absolute;
+  width: 240px;
+  transform: translate(-50%, -50%);
+  border-radius: 16px;
+  overflow: hidden;
+  pointer-events: auto;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+.sf-stage-card:hover {
+  transform: translate(-50%, -52%);
+  border-color: rgba(59,130,246,0.35);
+  box-shadow: 0 18px 40px rgba(0,0,0,0.35);
+}
+
+.sf-stage-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.sf-stage-pill {
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: rgba(56,189,248,0.95);
+}
+
+.sf-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(148,163,184,0.85);
+}
+.sf-live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--sf-emerald);
+  box-shadow: 0 0 10px rgba(16,185,129,0.55);
+}
+
+.sf-stage-card__body {
+  padding: 14px 14px 16px;
+}
+.sf-stage-val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-size: 30px;
+  font-weight: 900;
+  color: var(--sf-text);
+  line-height: 1;
+}
+.sf-stage-sub {
+  margin-top: 8px;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgba(148,163,184,0.70);
+}
+
+/* Right panel (legacy overlay) */
+.sf-panel {
+  border-radius: 18px;
+  overflow: hidden;
+  padding: 18px;
+}
+
+.sf-panel__title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.sf-panel__title h3 {
+  font-size: 14px;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-weight: 900;
+  color: var(--sf-text);
+}
+
+.sf-panel__reset {
+  font-size: 11px;
+  font-weight: 900;
+  color: rgba(148,163,184,0.85);
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+
+.sf-panel-card {
+  border-radius: 16px;
+  padding: 14px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: rgba(2, 6, 23, 0.22);
+}
+
+.sf-panel-card + .sf-panel-card { margin-top: 12px; }
+
+.sf-panel-card__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sf-panel-card__name {
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: rgba(226,232,240,0.92);
+}
+
+.sf-panel-card__val {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  font-weight: 900;
+  color: rgba(56,189,248,0.95);
+}
+
+.sf-slider {
+  margin-top: 12px;
+}
+
+.sf-slider input[type="range"] {
+  width: 100%;
+}
+
+.sf-actions {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.sf-btn {
+  padding: 10px 12px;
+  border-radius: 12px;
+  font-weight: 900;
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(226,232,240,0.9);
+}
+.sf-btn:hover { border-color: rgba(59,130,246,0.45); }
+
+.sf-btn.danger {
+  color: rgba(251,113,133,0.95);
+  border-color: rgba(251,113,133,0.30);
+  background: rgba(251,113,133,0.06);
+}
+.sf-btn.danger:hover { border-color: rgba(251,113,133,0.55); }
+
+/* =========================================================
+   [ACTIVE] PROCESS TAB INLINE LAYOUT (Team-style)
+   - 공정 흐름 탭 내부에서: STAGE 클릭 → 우측 패널 슬라이드
+   ========================================================= */
+
+.sf-process-wrap{
+  position: relative;
+  /* 패널이 닫힌 상태에서 오른쪽으로 밀려나며 가로 스크롤 생기는 것 방지 */
+  overflow-x: hidden;
+}
+
+.sf-map-area{
+  position: relative;
+  width: 100%;
+  min-height: 520px;
+  border-radius: 18px;
+  overflow: hidden;
+
+  /* 팀원 느낌: 중앙 무대 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: radial-gradient(900px 600px at 35% 25%, rgba(59,130,246,0.10), transparent 55%),
+              radial-gradient(800px 600px at 75% 70%, rgba(16,185,129,0.08), transparent 55%),
+              rgba(255,255,255,0.03);
+
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+
+.sf-map-frame{
+  position: relative;
+  width: min(920px, 92%);
+  height: 420px;          /* .sf-map-img max-height와 맞춤 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sf-map-frame .sf-map-img{
+  max-height: 420px;
+}
+
+.sf-map-frame .sf-stage-layer{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+}
+
+
+
+
+
+
+  /* 팀원 느낌: 맵을 중앙에 띄우는 무대 */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  background: radial-gradient(900px 600px at 35% 25%, rgba(59,130,246,0.10), transparent 55%),
+              radial-gradient(800px 600px at 75% 70%, rgba(16,185,129,0.08), transparent 55%),
+              rgba(255,255,255,0.03);
+
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+.sf-map-img{
+  width: min(920px, 92%);
+  height: auto;
+  max-height: 420px;
+  object-fit: contain;
+  display:block;
+  filter: saturate(1.05) contrast(1.05);
+}
+
+/* stage 카드 레이어 */
+.sf-stage-layer{
+  position:absolute;
+  inset:0;
+  pointer-events:none; /* 카드만 pointer-events 켤거라 기본은 막음 */
+}
+
+/* 오른쪽 슬라이드 패널 */
+.sf-config{
+  width: 360px;
+  border-radius: 18px;
+  background: rgba(10, 20, 35, 0.65);
+  border: 1px solid rgba(255,255,255,0.10);
+  backdrop-filter: blur(14px);
+  overflow:hidden;
+
+  /* ✅ 슬라이드 핵심: 공정탭 내부에서만 absolute로 떠야 "오른쪽으로 튀어나감"이 사라짐 */
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+
+  /* 닫힘 상태 */
+  transform: translateX(100%);
+  transition: transform .35s cubic-bezier(.6,.2,.25,1);
+  z-index: 60; /* 맵 위로 확실히 */
+}
+
+.sf-config.is-open{
+  transform: translateX(0);
+}
+
+.sf-config-head{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  padding: 16px 16px 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.sf-config-title{
+  font-weight: 900;
+  letter-spacing: .12em;
+  color: var(--sf-text);
+}
+
+.sf-config-sub{
+  margin-top: 4px;
+  font-size: 12px;
+  opacity: .75;
+  color: rgba(148,163,184,0.85);
+}
+
+/* 닫기 버튼 */
+.sf-x{
+  width: 34px;
+  height: 34px;
+  border-radius: 12px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(226,232,240,0.92);
+  cursor: pointer;
+}
+.sf-x:hover{
+  border-color: rgba(59,130,246,0.45);
+}
+
+.sf-config-body{
+  padding: 14px 16px;
+}
+
+/* === Panel accordion (team-like) === */
+.sf-acc { display: flex; flex-direction: column; gap: 10px; }
+
+.sf-acc-item{
+  border-radius: 16px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background: rgba(2, 6, 23, 0.18);
+  overflow: hidden;
+}
+
+.sf-acc-head{
+  width: 100%;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  padding: 12px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+}
+
+.sf-acc-title{
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: rgba(226,232,240,0.92);
+}
+
+.sf-acc-val{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-weight: 900;
+  color: rgba(56,189,248,0.95);
+}
+
+.sf-acc-unit{ margin-left:6px; opacity:.7; font-weight:900; }
+
+.sf-acc-body{
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition: max-height .28s ease, opacity .22s ease, transform .22s ease;
+  padding: 0 14px;
+}
+
+.sf-acc-item.is-active .sf-acc-body{
+  max-height: 240px;
+  opacity: 1;
+  transform: translateY(0);
+  padding: 10px 14px 14px;
+}
+
+.sf-acc-row{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom: 10px;
+}
+
+.sf-acc-label{
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: .08em;
+  color: rgba(148,163,184,0.75);
+}
+
+.sf-acc-mini{
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+  font-weight: 900;
+  color: rgba(56,189,248,0.95);
+}
+
+.sf-range{ width:100%; margin: 6px 0 12px; }
+
+/* 로그 섹션(팀원 느낌) */
+.sf-log-wrap{
+  margin-top: 14px;
+  border-radius: 18px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.45);
+  border: 1px solid rgba(255,255,255,0.08);
+}
+
+
+

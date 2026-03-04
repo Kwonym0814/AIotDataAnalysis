@@ -1,0 +1,70 @@
+
+/* ============================================================
+   공정 흐름 탭(팀원) 전용 스타일 - 베이스 UI에 충돌 없이 추가
+   - 전역 body/scrollbar/루트 변수 제어는 절대 하지 않음
+   ============================================================ */
+
+[data-view="process"] #floating-cards-container .floating-card{
+  pointer-events: auto; /* 카드 클릭/호버 가능 */
+}
+
+/* 로그 리스트 기본 */
+[data-view="process"] #log-list .log-item{
+  border-left-width: 4px;
+}
+
+/* ===== Overlay Wrapper ===== */
+.twin-overlay{
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(8px);
+  display: none;
+  z-index: 9999;
+  padding: 20px;
+}
+.twin-overlay.active{
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.twin-overlay__panel{
+  width: min(1200px, 100%);
+  height: min(760px, 100%);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.twin-overlay__top{
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+.twin-overlay__close{
+  width: 40px;
+  height: 40px;
+  border-radius: 14px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+}
+
+/* overlay 내부에서 기존 twin-stage가 꽉 차도록 */
+.twin-overlay .twin-stage{
+  flex: 1;
+  min-height: 0;
+}
+
+/* 기존 twinResult는 base에서 display:none 토글을 쓰는데, overlay는 class 토글로 처리 */
+#twinResult{
+  display: none;
+}
+.twin-sidebar.expanded #twinResult{
+  display: block;
+}
