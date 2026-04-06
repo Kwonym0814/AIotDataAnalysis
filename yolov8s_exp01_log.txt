@@ -1,0 +1,4 @@
+[06:11:45] GPU: NVIDIA GeForce RTX 3070
+[06:11:45] VRAM: 8.6 GB
+[06:11:45] data: C:\work\python_area\AIotDataAnalysis\dataset.yaml
+[06:11:45] 학습 시작

@@ -1,0 +1,25 @@
+[06:12:15] GPU: NVIDIA GeForce RTX 3070
+[06:12:15] VRAM: 8.6 GB
+[06:12:15] data: C:\work\python_area\AIotDataAnalysis\workspace_python\프로젝트2\dataset.yaml
+[06:12:15] 학습 시작
+[06:12:21] GPU: NVIDIA GeForce RTX 3070
+[06:12:21] VRAM: 8.6 GB
+[06:12:21] data: C:\work\python_area\AIotDataAnalysis\workspace_python\프로젝트2\dataset.yaml
+[06:12:21] 학습 시작
+[06:13:15] GPU: NVIDIA GeForce RTX 3070
+[06:13:15] VRAM: 8.6 GB
+[06:13:15] data: C:\work\python_area\AIotDataAnalysis\workspace_python\프로젝트2\dataset.yaml
+[06:13:15] 학습 시작
+[06:16:55] GPU: NVIDIA GeForce RTX 3070
+[06:16:55] VRAM: 8.6 GB
+[06:16:55] data: C:\work\python_area\AIotDataAnalysis\workspace_python\프로젝트2\dataset.yaml
+[06:16:55] 학습 시작
+[07:34:15] 학습 완료 — 소요 시간: 77.3분
+[07:34:15] 결과 저장: C:\work\python_area\AIotDataAnalysis\workspace_python\프로젝트2\runs\detect\runs\baseline\yolov8s_exp01
+[07:34:15] 검증(val) 시작
+[07:34:46] === EXP-01 평가 결과 ===
+[07:34:46]   mAP@0.5:      0.9950
+[07:34:46]   mAP@0.5:0.95: 0.9522
+[07:34:46]   Precision:     0.9904
+[07:34:46]   Recall:        0.9929
+[07:34:46] 완료

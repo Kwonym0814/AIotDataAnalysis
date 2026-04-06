@@ -1,0 +1,13 @@
+path: C:/work/python_area/AIotDataAnalysis/workspace_python/프로젝트2/dataset/track_a_images
+train: images/train
+val: images/val
+nc: 8
+names:
+  0: scratch
+  1: dent
+  2: paint_bubble
+  3: paint_drip
+  4: dust
+  5: orange_peel
+  6: crack
+  7: gap_fault
