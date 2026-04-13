@@ -57,9 +57,25 @@ dataset/mes_2025/
 ├── mes_production_result.csv   10.4 MB  129,168행   생산실적 (일×라인×모델×교대조)
 ├── mes_inventory_daily.csv    159.0 KB   4,008행   재고현황 (일×모델)
 ├── mes_color_production.csv    59.3 KB   1,980행   색상별 생산집계 (월×모델×색상)
+│
+│   ── 건조로 예지보전 (KAMP 기반) ──
+├── mes_oven_sensor.csv         ~10 MB  154,284행   건조로 센서 (Process 단위)
+├── mes_oven_anomaly_log.csv              12,861행   이상 감지 이벤트 로그
+│
 ├── master_model.csv                        12행   차종 마스터
 ├── master_color.csv                        15행   색상 마스터
 └── master_plant_line.csv                   13행   공장-라인 마스터
+```
+
+### 전체 파이프라인
+```
+[수요/생산 계획] → [작업지시] → [생산실적] → [재고관리]
+                                    ↓
+                          [도장 공정 검사]  ←── inspection_master (기존)
+                                    ↓
+                          [건조로 통과]      ←── mes_oven_sensor (신규)
+                                    ↓
+                          [예지보전 모델]    ←── LSTM-AutoEncoder
 ```
 
 ---
@@ -182,6 +198,54 @@ dataset/mes_2025/
 
 ---
 
+### 7. mes_oven_sensor.csv (건조로 센서)
+> 도장 후 건조로(Oven) 통과 기록. 차체 1대 = 1 Process = 180초(3분).
+> KAMP 열풍건조 센서 데이터를 자동차 도장 건조 조건(90~130°C, 15~25A)으로 변환.
+
+| 컬럼 | 설명 |
+|------|------|
+| date | 작업일 |
+| oven_id | 건조로 ID (OV-UL1 ~ OV-HW3, 13개) |
+| plant_code | 공장 코드 (→ master_plant_line) |
+| process_no | 차체 통과 순번 (1~43/일) |
+| avg_oven_temp | 평균 건조 온도 (°C) |
+| max/min/std_oven_temp | 최대/최저/표준편차 온도 |
+| avg_heater_curr | 평균 히터 전류 (A) |
+| zone1~4_avg_temp | Zone별 평균 온도 (예열→피크→유지→서냉) |
+| label | 이상 여부 (0=정상, 1=이상) |
+| anomaly_type | 이상 유형 (NORMAL / HEATER_DEGRADATION / TEMP_SENSOR_ERR / CIRCULATION_FAN / CONVEYOR_SPEED) |
+
+**건조로 Zone 구성:**
+```
+Z1 예열 (0~45s, 90~110°C) → Z2 피크 (45~90s, 120~130°C)
+→ Z3 유지 (90~135s, 120~130°C) → Z4 서냉 (135~180s, 90~110°C)
+```
+
+**이상 유형 & 센서 패턴:**
+| 유형 | 원인 | 패턴 | 심각도 |
+|------|------|------|--------|
+| HEATER_DEGRADATION | 히터 열화 | 전류 감소 + 온도 하강 | MEDIUM |
+| TEMP_SENSOR_ERR | 온도센서 오류 | 온도 급등 (스파이크) | HIGH |
+| CIRCULATION_FAN | 순환팬 고장 | 온도 편차(std) 급증 | MEDIUM |
+| CONVEYOR_SPEED | 컨베이어 속도 이상 | Zone간 온도 편차 변화 | MEDIUM |
+
+---
+
+### 8. mes_oven_anomaly_log.csv (이상 감지 이벤트)
+> 건조로 이상 감지 이벤트 로그. 예지보전 알람 기록.
+
+| 컬럼 | 설명 |
+|------|------|
+| event_id | 이벤트 ID (AE로 시작) |
+| date / oven_id / plant_code | 발생 위치 |
+| process_no | 이상 발생 차체 순번 |
+| anomaly_type | 이상 유형 |
+| avg_temp_at_event / avg_curr_at_event | 이상 시점 센서값 |
+| severity | 심각도 (HIGH / MEDIUM) |
+| maintenance_required | 점검 필요 여부 (Y/N) |
+
+---
+
 ## 테이블 관계도
 
 ```
@@ -194,10 +258,16 @@ mes_production_plan (생산계획)
 mes_work_order (작업지시)  ←──── master_model / master_color / master_plant_line
     │ [1:1 매핑]
     ▼
-mes_production_result (생산실적)
-    │ [양품 집계]
-    ▼
-mes_inventory_daily (재고현황)
+mes_production_result (생산실적)  ──────────────────────────┐
+    │ [양품 집계]                                            │ [date × plant_code 조인]
+    ▼                                                       ▼
+mes_inventory_daily (재고현황)          mes_oven_sensor (건조로 센서)
+                                                │ [label=1 집계]
+                                                ▼
+                                   mes_oven_anomaly_log (이상 이벤트)
+                                                │ [LSTM-AE 예지보전 모델]
+                                                ▼
+                                    models/oven_lstm_ae_OV_UL1.keras
 ```
 
 ---
@@ -245,12 +315,26 @@ mes_inventory_daily (재고현황)
 ## 생성 스크립트
 
 ```bash
+# 1단계: MES 주문/생산/재고 데이터 생성
 python generate_mes_dataset.py
+
+# 2단계: 건조로 센서 데이터 생성 (KAMP 기반)
+python generate_oven_sensor.py
+
+# 3단계: 예지보전 LSTM-AE 모델 학습 + 리포트
+python train_oven_anomaly.py
 ```
 
-시드 고정(`np.random.seed(42)`)으로 재실행 시 동일 결과 보장.
+| 스크립트 | 출력 | 비고 |
+|----------|------|------|
+| `generate_mes_dataset.py` | MES CSV 6종 | seed=42 |
+| `generate_oven_sensor.py` | `mes_oven_sensor.csv`, `mes_oven_anomaly_log.csv` | KAMP 33일 → 276일 확장 |
+| `train_oven_anomaly.py` | `models/oven_lstm_ae_OV_UL1.keras`, `oven_anomaly_report.html` | TensorFlow 필요 |
 
 ---
 
-*생성일: 2026-04-13*
-*데이터 소스: 현대 오토에버 Track A Dataset + 현대차 2025 공식 판매 실적*
+*생성일: 2026-04-13*  
+*데이터 소스: 현대 오토에버 Track A Dataset + 현대차 2025 공식 판매 실적 + KAMP 열풍건조 센서 데이터*
+
+
+
